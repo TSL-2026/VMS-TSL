@@ -1,12 +1,12 @@
 /**
  * FILE: Dashboard.jsx
- * VERSION: Test-05
+ * VERSION: Test-06
  * CHANGES:
- * - Removed Document Tracking section (belongs in Vehicle details)
- * - Kept only fleet-level metrics and alerts
- * - Fixed Register New Vehicle button to auto-open form (?action=add)
- * - Focus on fleet compliance dashboard
- * PURPOSE: Track fleet compliance, permits, insurance, and service records
+ * - Added CSV/Excel export functionality for vehicles and trips
+ * - Export buttons visible only to supervisor (hardcoded email check)
+ * - Can export all vehicle data including permits, insurance, service records
+ * - Can export all trip data including routes, distance, revenue
+ * PURPOSE: Fleet compliance dashboard with data export for supervisor
  */
 
 import { signOut } from 'firebase/auth'
@@ -27,12 +27,16 @@ export default function Dashboard() {
   })
   
   const [alerts, setAlerts] = useState([])
+  const [exporting, setExporting] = useState(false)
 
   const handleLogout = async () => {
     await signOut(auth)
   }
 
   const user = auth.currentUser
+  
+  // Check if user is supervisor (admin) - change this email to your supervisor's email
+  const isSupervisor = user?.email === 'gsacharyasu@sitaair.com.np' || user?.email === 'gsacharya@sisitaair.com.np
 
   const isExpiringSoon = (date) => {
     if (!date) return false
@@ -45,6 +49,118 @@ export default function Dashboard() {
   const isExpired = (date) => {
     if (!date) return false
     return new Date(date) < new Date()
+  }
+
+  // Export vehicles to CSV
+  const exportVehiclesToCSV = async () => {
+    setExporting(true)
+    try {
+      const vehiclesRef = collection(db, 'users', user.uid, 'vehicles')
+      const snapshot = await getDocs(vehiclesRef)
+      const vehicles = snapshot.docs.map(doc => doc.data())
+      
+      // Define CSV headers
+      const headers = [
+        'License Plate', 'Make', 'Model', 'Year', 'Color', 'Status',
+        'Chassis Number', 'Engine Number', 'Permit Renewal Date', 'Insurance Expiry Date',
+        'Last Service Date', 'Last Service KM', 'Last Service Notes',
+        'Purchase Date', 'Supplier', 'Notes', 'Created At'
+      ]
+      
+      // Convert to CSV rows
+      const rows = vehicles.map(v => [
+        v.licensePlate || '',
+        v.make || '',
+        v.model || '',
+        v.year || '',
+        v.color || '',
+        v.status || '',
+        v.chassisNumber || '',
+        v.engineNumber || '',
+        v.permitRenewalDate || '',
+        v.insuranceExpiryDate || '',
+        v.lastServiceDate || '',
+        v.lastServiceKm || '',
+        v.lastServiceNotes || '',
+        v.purchaseDate || '',
+        v.supplier || '',
+        v.notes || '',
+        v.createdAt || ''
+      ])
+      
+      // Create CSV content
+      const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n')
+      
+      // Download file
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `vehicles_export_${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exporting vehicles:', error)
+      alert('Error exporting vehicles: ' + error.message)
+    } finally {
+      setExporting(false)
+    }
+  }
+  
+  // Export trips to CSV
+  const exportTripsToCSV = async () => {
+    setExporting(true)
+    try {
+      // First get vehicles for license plate lookup
+      const vehiclesRef = collection(db, 'users', user.uid, 'vehicles')
+      const vehiclesSnap = await getDocs(vehiclesRef)
+      const vehiclesMap = {}
+      vehiclesSnap.forEach(doc => {
+        const data = doc.data()
+        vehiclesMap[doc.id] = data.licensePlate || 'Unknown'
+      })
+      
+      const tripsRef = collection(db, 'users', user.uid, 'trips')
+      const snapshot = await getDocs(tripsRef)
+      const trips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      
+      // Define CSV headers
+      const headers = [
+        'Vehicle License Plate', 'Driver Name', 'Start Location', 'End Location',
+        'Start Date', 'End Date', 'Distance (km)', 'Revenue (रू)', 'Fuel Cost (रू)', 'Notes'
+      ]
+      
+      // Convert to CSV rows
+      const rows = trips.map(t => [
+        vehiclesMap[t.vehicleId] || 'Unknown',
+        t.driverName || '',
+        t.startLocation || '',
+        t.endLocation || '',
+        t.startDate || '',
+        t.endDate || '',
+        t.distance || '',
+        t.revenue || '',
+        t.fuelCost || '',
+        t.notes || ''
+      ])
+      
+      // Create CSV content
+      const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n')
+      
+      // Download file
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `trips_export_${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exporting trips:', error)
+      alert('Error exporting trips: ' + error.message)
+    } finally {
+      setExporting(false)
+    }
   }
 
   useEffect(() => {
@@ -138,11 +254,40 @@ export default function Dashboard() {
       <div className="flex-grow container mx-auto p-6">
         {/* Organization Header */}
         <div className="bg-gradient-to-r from-blue-50 to-white rounded-lg shadow p-6 mb-6 border-l-4 border-blue-500">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">Sita Air Ltd</h1>
-            <p className="text-gray-600 mt-1">Baburam Acharya Marg, Sinamangal, Kathmandu, Nepal</p>
-            <p className="text-sm text-gray-500 mt-1">Vehicle Management System</p>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">Sita Air Ltd</h1>
+              <p className="text-gray-600 mt-1">Baburam Acharya Marg, Sinamangal, Kathmandu, Nepal</p>
+              <p className="text-sm text-gray-500 mt-1">Vehicle Management System</p>
+            </div>
+            
+            {/* Export Buttons - Only visible to supervisor */}
+            {isSupervisor && (
+              <div className="mt-4 md:mt-0 flex gap-2">
+                <button
+                  onClick={exportVehiclesToCSV}
+                  disabled={exporting}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+                >
+                  📊 Export Vehicles
+                </button>
+                <button
+                  onClick={exportTripsToCSV}
+                  disabled={exporting}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                >
+                  📋 Export Trips
+                </button>
+              </div>
+            )}
           </div>
+          
+          {/* Supervisor indicator */}
+          {isSupervisor && (
+            <div className="mt-3 text-xs text-blue-600 bg-blue-50 inline-block px-3 py-1 rounded-full">
+              👑 Supervisor Mode - Export enabled
+            </div>
+          )}
         </div>
 
         {/* Alerts Section */}
