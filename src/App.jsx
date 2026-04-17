@@ -20,6 +20,7 @@ import Vehicles from './pages/Vehicles'
 import Trips from './pages/Trips'
 import Reports from './pages/Reports'
 import VehicleDetail from './pages/VehicleDetail'
+import FleetAnalytics from './pages/FleetAnalytics'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -53,6 +54,7 @@ function App() {
         <Route path="/vehicles/:id" element={user ? <VehicleDetail /> : <Navigate to="/login" />} />
         <Route path="/trips" element={user ? <Trips /> : <Navigate to="/login" />} />
         <Route path="/reports" element={user ? <Reports /> : <Navigate to="/login" />} />
+        <Route path="/analytics" element={user ? <FleetAnalytics /> : <Navigate to="/login" />} />
       </Routes>
     </Router>
   )

@@ -1,16 +1,15 @@
 /**
  * FILE: Trips.jsx
- * VERSION: Test-07
+ * VERSION: Test-08
  * AUTHOR: Ghanshyam Acharya
- * PURPOSE: Manage trips for all vehicles (add, edit, delete, view)
+ * PURPOSE: Manage trips with fuel efficiency tracking
  * DEPENDENCIES: React, Firebase Firestore, React Router
  * 
  * CHANGES:
+ * - Added fuelQuantity (liters) field
+ * - Added auto-calculated fuel efficiency (km/l)
+ * - Added fuel efficiency display in trip list
  * - Added edit trip functionality
- * - Added trip details view
- * - Improved form validation
- * - Added loading states
- * - Added error handling
  */
 
 import { useState, useEffect } from 'react'
@@ -26,6 +25,7 @@ export default function Trips() {
   const [editingId, setEditingId] = useState(null)
   const [selectedTrip, setSelectedTrip] = useState(null)
   const [showDetails, setShowDetails] = useState(false)
+  const [fuelEfficiency, setFuelEfficiency] = useState(0)
   const [formData, setFormData] = useState({
     vehicleId: '',
     startLocation: '',
@@ -35,10 +35,22 @@ export default function Trips() {
     distance: '',
     revenue: '',
     fuelCost: '',
+    fuelQuantity: '',      // NEW: Fuel quantity in liters
     driverName: '',
     notes: ''
   })
   const [errors, setErrors] = useState({})
+
+  // Calculate fuel efficiency when distance or fuelQuantity changes
+  useEffect(() => {
+    const distance = parseFloat(formData.distance) || 0
+    const fuelQuantity = parseFloat(formData.fuelQuantity) || 0
+    if (distance > 0 && fuelQuantity > 0) {
+      setFuelEfficiency((distance / fuelQuantity))
+    } else {
+      setFuelEfficiency(0)
+    }
+  }, [formData.distance, formData.fuelQuantity])
 
   // Fetch vehicles for dropdown
   const fetchVehicles = async () => {
@@ -105,7 +117,6 @@ export default function Trips() {
       ...formData,
       [e.target.name]: e.target.value
     })
-    // Clear error for this field when user starts typing
     if (errors[e.target.name]) {
       setErrors({ ...errors, [e.target.name]: '' })
     }
@@ -118,16 +129,27 @@ export default function Trips() {
     const user = auth.currentUser
     if (!user) return
 
+    // Calculate fuel efficiency
+    const distance = parseFloat(formData.distance) || 0
+    const fuelQuantity = parseFloat(formData.fuelQuantity) || 0
+    const calculatedEfficiency = distance > 0 && fuelQuantity > 0 ? (distance / fuelQuantity) : 0
+
+    const tripData = {
+      ...formData,
+      fuelEfficiency: calculatedEfficiency,
+      updatedAt: new Date().toISOString()
+    }
+
     try {
       const tripsRef = collection(db, 'users', user.uid, 'trips')
       
       if (editingId) {
         const tripDoc = doc(db, 'users', user.uid, 'trips', editingId)
-        await updateDoc(tripDoc, formData)
+        await updateDoc(tripDoc, tripData)
         setEditingId(null)
       } else {
         await addDoc(tripsRef, {
-          ...formData,
+          ...tripData,
           createdAt: new Date().toISOString()
         })
       }
@@ -166,6 +188,7 @@ export default function Trips() {
       distance: trip.distance || '',
       revenue: trip.revenue || '',
       fuelCost: trip.fuelCost || '',
+      fuelQuantity: trip.fuelQuantity || '',
       driverName: trip.driverName || '',
       notes: trip.notes || ''
     })
@@ -183,11 +206,12 @@ export default function Trips() {
   const resetForm = () => {
     setFormData({
       vehicleId: '', startLocation: '', endLocation: '', startDate: '', endDate: '',
-      distance: '', revenue: '', fuelCost: '', driverName: '', notes: ''
+      distance: '', revenue: '', fuelCost: '', fuelQuantity: '', driverName: '', notes: ''
     })
     setEditingId(null)
     setShowForm(false)
     setErrors({})
+    setFuelEfficiency(0)
   }
 
   const getVehicleName = (vehicleId) => {
@@ -216,6 +240,8 @@ export default function Trips() {
             <Link to="/" className="text-gray-600 hover:text-gray-800">Dashboard</Link>
             <Link to="/vehicles" className="text-gray-600 hover:text-gray-800">Vehicles</Link>
             <Link to="/trips" className="text-gray-600 hover:text-gray-800">Trips</Link>
+            <Link to="/reports" className="text-gray-600 hover:text-gray-800">Reports</Link>
+            <Link to="/analytics" className="text-gray-600 hover:text-gray-800">Analytics</Link>
             <span className="text-sm text-gray-600">{auth.currentUser?.email}</span>
             <button
               onClick={() => auth.signOut()}
@@ -235,10 +261,9 @@ export default function Trips() {
             <span>/</span>
             <span className="text-gray-700">Trips</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Trip Management</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Trip Management with Fuel Tracking</h1>
           <p className="text-gray-600 mt-1">
-            Log and track all trips for your vehicles. Record distance, revenue, fuel costs, 
-            and driver information for each journey.
+            Log and track all trips including distance, fuel consumption, and fuel efficiency (km/l).
           </p>
         </div>
 
@@ -352,9 +377,9 @@ export default function Trips() {
               <div>
                 <input
                   type="number"
-                  name="revenue"
-                  placeholder="Revenue (रू)"
-                  value={formData.revenue}
+                  name="fuelQuantity"
+                  placeholder="Fuel Quantity (liters)"
+                  value={formData.fuelQuantity}
                   onChange={handleChange}
                   className="p-2 border rounded w-full"
                 />
@@ -369,6 +394,21 @@ export default function Trips() {
                   className="p-2 border rounded w-full"
                 />
               </div>
+              <div>
+                <input
+                  type="number"
+                  name="revenue"
+                  placeholder="Revenue (रू)"
+                  value={formData.revenue}
+                  onChange={handleChange}
+                  className="p-2 border rounded w-full"
+                />
+              </div>
+              {fuelEfficiency > 0 && (
+                <div className="text-sm text-green-600 p-2">
+                  ⛽ Fuel Efficiency: {fuelEfficiency.toFixed(1)} km/l
+                </div>
+              )}
               <div className="md:col-span-2">
                 <textarea
                   name="notes"
@@ -382,190 +422,4 @@ export default function Trips() {
               <div className="md:col-span-2 flex gap-3">
                 <button
                   type="submit"
-                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                >
-                  {editingId ? 'Update Trip' : 'Save Trip'}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Trip Details Modal */}
-        {showDetails && selectedTrip && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-bold">Trip Details</h3>
-                  <button
-                    onClick={() => setShowDetails(false)}
-                    className="text-gray-500 hover:text-gray-700 text-2xl"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Vehicle</p>
-                      <p className="font-medium">{getVehicleName(selectedTrip.vehicleId)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Driver</p>
-                      <p className="font-medium">{selectedTrip.driverName || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Route</p>
-                      <p className="font-medium">{selectedTrip.startLocation} → {selectedTrip.endLocation}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Dates</p>
-                      <p className="font-medium">
-                        {selectedTrip.startDate && new Date(selectedTrip.startDate).toLocaleDateString()} - 
-                        {selectedTrip.endDate && new Date(selectedTrip.endDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Distance</p>
-                      <p className="font-medium">{selectedTrip.distance ? `${selectedTrip.distance} km` : 'Not recorded'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Revenue</p>
-                      <p className="font-medium text-green-600">रू {parseInt(selectedTrip.revenue || 0).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Fuel Cost</p>
-                      <p className="font-medium">रू {parseInt(selectedTrip.fuelCost || 0).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Profit</p>
-                      <p className="font-medium text-blue-600">
-                        रू {(parseInt(selectedTrip.revenue || 0) - parseInt(selectedTrip.fuelCost || 0)).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                  {selectedTrip.notes && (
-                    <div>
-                      <p className="text-sm text-gray-500">Notes</p>
-                      <p className="font-medium">{selectedTrip.notes}</p>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-6 flex gap-3">
-                  <button
-                    onClick={() => {
-                      setShowDetails(false)
-                      handleEdit(selectedTrip)
-                    }}
-                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                  >
-                    Edit Trip
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowDetails(false)
-                      handleDelete(selectedTrip.id)
-                    }}
-                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                  >
-                    Delete Trip
-                  </button>
-                  <button
-                    onClick={() => setShowDetails(false)}
-                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Trips List */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="p-3 text-left">Vehicle</th>
-                <th className="p-3 text-left">Route</th>
-                <th className="p-3 text-left">Dates</th>
-                <th className="p-3 text-left">Distance</th>
-                <th className="p-3 text-left">Revenue</th>
-                <th className="p-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trips.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="p-6 text-center text-gray-500">
-                    No trips yet. Click "Log New Trip" to get started.
-                  </td>
-                </tr>
-              ) : (
-                trips.map((trip) => (
-                  <tr key={trip.id} className="border-t hover:bg-gray-50 cursor-pointer" onClick={() => handleViewDetails(trip)}>
-                    <td className="p-3">{getVehicleName(trip.vehicleId)}</td>
-                    <td className="p-3">{trip.startLocation} → {trip.endLocation}</td>
-                    <td className="p-3">
-                      {trip.startDate && new Date(trip.startDate).toLocaleDateString()}
-                    </td>
-                    <td className="p-3">{trip.distance ? `${trip.distance} km` : '-'}</td>
-                    <td className="p-3 text-green-600">रू {parseInt(trip.revenue || 0).toLocaleString()}</td>
-                    <td className="p-3">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleEdit(trip)
-                        }}
-                        className="text-blue-500 hover:text-blue-700 mr-3"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDelete(trip.id)
-                        }}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-white border-t mt-auto">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-sm text-gray-600">
-              A project by{' '}
-              <a href="https://gsacharya.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                Ghanshyam Acharya
-              </a>
-            </div>
-            <div className="text-sm">
-              <a href="https://app.gsacharya.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:underline">
-                ← Back to Application Portal
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
-  )
-}
+                  className="bg

@@ -1,16 +1,15 @@
 /**
  * FILE: Vehicles.jsx
- * VERSION: Test-07
+ * VERSION: Test-08
  * AUTHOR: Ghanshyam Acharya
- * PURPOSE: Manage all vehicles (list, add, edit, delete) with clickable rows to view details
+ * PURPOSE: Manage all vehicles (list, add, edit, delete) with service cost tracking
  * DEPENDENCIES: React, Firebase Firestore, React Router
  * 
  * CHANGES:
+ * - Added lastServiceCost field to track service expenses
  * - Made vehicle rows clickable to navigate to VehicleDetail page
- * - Added proper error handling
- * - Improved form validation
+ * - Added proper error handling and form validation
  * - Added loading states
- * - Fixed CSS for clickable rows
  */
 
 import { useState, useEffect } from 'react'
@@ -38,6 +37,7 @@ export default function Vehicles() {
     insuranceExpiryDate: '',
     lastServiceDate: '',
     lastServiceKm: '',
+    lastServiceCost: '',      // NEW: Service cost field
     lastServiceNotes: '',
     purchaseDate: '',
     supplier: '',
@@ -108,7 +108,8 @@ export default function Vehicles() {
     setFormData({
       licensePlate: '', make: '', model: '', year: '', color: '', status: 'active',
       permitRenewalDate: '', insuranceExpiryDate: '', lastServiceDate: '', lastServiceKm: '',
-      lastServiceNotes: '', purchaseDate: '', supplier: '', chassisNumber: '', engineNumber: '', notes: ''
+      lastServiceCost: '', lastServiceNotes: '', purchaseDate: '', supplier: '',
+      chassisNumber: '', engineNumber: '', notes: ''
     })
   }
 
@@ -137,7 +138,6 @@ export default function Vehicles() {
       setShowForm(false)
       setErrors({})
       fetchVehicles()
-      // Remove URL parameters
       window.history.replaceState({}, '', '/vehicles')
     } catch (error) {
       console.error('Error saving vehicle:', error)
@@ -146,7 +146,7 @@ export default function Vehicles() {
   }
 
   const handleDelete = async (id, e) => {
-    e.stopPropagation() // Prevent row click when clicking delete
+    e.stopPropagation()
     if (!confirm('Are you sure you want to delete this vehicle? This will also delete all trips associated with this vehicle.')) return
     
     const user = auth.currentUser
@@ -174,6 +174,7 @@ export default function Vehicles() {
       insuranceExpiryDate: vehicle.insuranceExpiryDate || '',
       lastServiceDate: vehicle.lastServiceDate || '',
       lastServiceKm: vehicle.lastServiceKm || '',
+      lastServiceCost: vehicle.lastServiceCost || '',      // NEW
       lastServiceNotes: vehicle.lastServiceNotes || '',
       purchaseDate: vehicle.purchaseDate || '',
       supplier: vehicle.supplier || '',
@@ -228,6 +229,7 @@ export default function Vehicles() {
             <Link to="/vehicles" className="text-gray-600 hover:text-gray-800">Vehicles</Link>
             <Link to="/trips" className="text-gray-600 hover:text-gray-800">Trips</Link>
             <Link to="/reports" className="text-gray-600 hover:text-gray-800">Reports</Link>
+            <Link to="/analytics" className="text-gray-600 hover:text-gray-800">Analytics</Link>
             <span className="text-sm text-gray-600">{auth.currentUser?.email}</span>
             <button
               onClick={() => auth.signOut()}
@@ -249,7 +251,7 @@ export default function Vehicles() {
           </div>
           <h1 className="text-2xl font-bold text-gray-800">Vehicle Registry</h1>
           <p className="text-gray-600 mt-1">
-            Manage all vehicle details including permits, insurance, and service history. Click on any vehicle to view complete details.
+            Manage all vehicle details including permits, insurance, service history, and service costs.
           </p>
         </div>
 
@@ -386,7 +388,7 @@ export default function Vehicles() {
                 />
               </div>
 
-              {/* Service History */}
+              {/* Service History with Cost */}
               <div>
                 <input
                   type="date"
@@ -403,6 +405,16 @@ export default function Vehicles() {
                   name="lastServiceKm"
                   placeholder="Last Service KM"
                   value={formData.lastServiceKm}
+                  onChange={handleChange}
+                  className="p-2 border rounded w-full"
+                />
+              </div>
+              <div>
+                <input
+                  type="number"
+                  name="lastServiceCost"
+                  placeholder="Last Service Cost (रू)"
+                  value={formData.lastServiceCost}
                   onChange={handleChange}
                   className="p-2 border rounded w-full"
                 />
@@ -470,7 +482,7 @@ export default function Vehicles() {
           </div>
         )}
 
-        {/* Vehicles List - Clickable Rows */}
+        {/* Vehicles List */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -480,6 +492,7 @@ export default function Vehicles() {
                 <th className="p-3 text-left">Permit</th>
                 <th className="p-3 text-left">Insurance</th>
                 <th className="p-3 text-left">Last Service</th>
+                <th className="p-3 text-left">Service Cost</th>
                 <th className="p-3 text-left">Status</th>
                 <th className="p-3 text-left">Actions</th>
               </tr>
@@ -487,7 +500,7 @@ export default function Vehicles() {
             <tbody>
               {vehicles.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="p-6 text-center text-gray-500">
+                  <td colSpan="8" className="p-6 text-center text-gray-500">
                     No vehicles registered yet. Click "Register New Vehicle" to get started.
                   </td>
                 </tr>
@@ -506,8 +519,6 @@ export default function Vehicles() {
                       {vehicle.permitRenewalDate ? (
                         <span className={`text-sm ${isExpired(vehicle.permitRenewalDate) ? 'text-red-600 font-semibold' : isExpiringSoon(vehicle.permitRenewalDate) ? 'text-yellow-600' : 'text-green-600'}`}>
                           {new Date(vehicle.permitRenewalDate).toLocaleDateString()}
-                          {isExpiringSoon(vehicle.permitRenewalDate) && !isExpired(vehicle.permitRenewalDate) && ' (Soon)'}
-                          {isExpired(vehicle.permitRenewalDate) && ' (EXPIRED)'}
                         </span>
                       ) : 'Not set'}
                     </td>
@@ -515,18 +526,14 @@ export default function Vehicles() {
                       {vehicle.insuranceExpiryDate ? (
                         <span className={`text-sm ${isExpired(vehicle.insuranceExpiryDate) ? 'text-red-600 font-semibold' : isExpiringSoon(vehicle.insuranceExpiryDate) ? 'text-yellow-600' : 'text-green-600'}`}>
                           {new Date(vehicle.insuranceExpiryDate).toLocaleDateString()}
-                          {isExpiringSoon(vehicle.insuranceExpiryDate) && !isExpired(vehicle.insuranceExpiryDate) && ' (Soon)'}
-                          {isExpired(vehicle.insuranceExpiryDate) && ' (EXPIRED)'}
                         </span>
                       ) : 'Not set'}
                     </td>
                     <td className="p-3">
-                      {vehicle.lastServiceDate ? (
-                        <div>
-                          <div className="text-sm">{new Date(vehicle.lastServiceDate).toLocaleDateString()}</div>
-                          {vehicle.lastServiceKm && <div className="text-xs text-gray-500">{parseInt(vehicle.lastServiceKm).toLocaleString()} km</div>}
-                        </div>
-                      ) : 'No record'}
+                      {vehicle.lastServiceDate ? new Date(vehicle.lastServiceDate).toLocaleDateString() : 'No record'}
+                    </td>
+                    <td className="p-3">
+                      {vehicle.lastServiceCost ? `रू ${parseInt(vehicle.lastServiceCost).toLocaleString()}` : '-'}
                     </td>
                     <td className="p-3">
                       <span className={`px-2 py-1 rounded text-sm ${
