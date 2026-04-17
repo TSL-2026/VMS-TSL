@@ -3,13 +3,14 @@
  * VERSION: Test-07
  * AUTHOR: Ghanshyam Acharya
  * PURPOSE: Generate reports and analytics for fleet management
- * DEPENDENCIES: React, Firebase Firestore, Recharts (for charts)
+ * DEPENDENCIES: React, Firebase Firestore, Recharts
  * 
  * CHANGES:
  * - Added monthly trip statistics chart
  * - Added vehicle utilization report
  * - Added revenue/expense tracking
  * - Added export functionality
+ * - Fixed JSX syntax error
  */
 
 import { useState, useEffect } from 'react'
@@ -18,7 +19,7 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { Link } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line
+  PieChart, Pie, Cell
 } from 'recharts'
 
 export default function Reports() {
@@ -131,7 +132,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Navigation Bar */}
       <nav className="bg-white shadow p-4">
         <div className="container mx-auto flex justify-between items-center">
@@ -152,7 +153,7 @@ export default function Reports() {
         </div>
       </nav>
 
-      <div className="container mx-auto p-6">
+      <div className="flex-grow container mx-auto p-6">
         {/* Page Header */}
         <div className="mb-6">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
@@ -318,4 +319,12 @@ export default function Reports() {
             </div>
             <div className="text-sm">
               <a href="https://app.gsacharya.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:underline">
-                ← Back
+                ← Back to Application Portal
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
+}

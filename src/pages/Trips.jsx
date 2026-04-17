@@ -35,7 +35,7 @@ export default function Trips() {
     distance: '',
     revenue: '',
     fuelCost: '',
-    fuelQuantity: '',      // NEW: Fuel quantity in liters
+    fuelQuantity: '',
     driverName: '',
     notes: ''
   })
@@ -422,4 +422,208 @@ export default function Trips() {
               <div className="md:col-span-2 flex gap-3">
                 <button
                   type="submit"
-                  className="bg
+                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                >
+                  {editingId ? 'Update Trip' : 'Save Trip'}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Trip Details Modal */}
+        {showDetails && selectedTrip && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold">Trip Details</h3>
+                  <button
+                    onClick={() => setShowDetails(false)}
+                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Vehicle</p>
+                      <p className="font-medium">{getVehicleName(selectedTrip.vehicleId)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Driver</p>
+                      <p className="font-medium">{selectedTrip.driverName || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Route</p>
+                      <p className="font-medium">{selectedTrip.startLocation} → {selectedTrip.endLocation}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Dates</p>
+                      <p className="font-medium">
+                        {selectedTrip.startDate && new Date(selectedTrip.startDate).toLocaleDateString()} - 
+                        {selectedTrip.endDate && new Date(selectedTrip.endDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Distance</p>
+                      <p className="font-medium">{selectedTrip.distance ? `${selectedTrip.distance} km` : 'Not recorded'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Fuel Quantity</p>
+                      <p className="font-medium">{selectedTrip.fuelQuantity ? `${selectedTrip.fuelQuantity} L` : 'Not recorded'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Fuel Efficiency</p>
+                      <p className="font-medium text-green-600">
+                        {selectedTrip.fuelEfficiency ? `${selectedTrip.fuelEfficiency.toFixed(1)} km/l` : 'Not calculated'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Revenue</p>
+                      <p className="font-medium text-green-600">रू {parseInt(selectedTrip.revenue || 0).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Fuel Cost</p>
+                      <p className="font-medium">रू {parseInt(selectedTrip.fuelCost || 0).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Profit</p>
+                      <p className="font-medium text-blue-600">
+                        रू {(parseInt(selectedTrip.revenue || 0) - parseInt(selectedTrip.fuelCost || 0)).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  {selectedTrip.notes && (
+                    <div>
+                      <p className="text-sm text-gray-500">Notes</p>
+                      <p className="font-medium">{selectedTrip.notes}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-6 flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowDetails(false)
+                      handleEdit(selectedTrip)
+                    }}
+                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  >
+                    Edit Trip
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDetails(false)
+                      handleDelete(selectedTrip.id)
+                    }}
+                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  >
+                    Delete Trip
+                  </button>
+                  <button
+                    onClick={() => setShowDetails(false)}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Trips List */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="p-3 text-left">Vehicle</th>
+                <th className="p-3 text-left">Route</th>
+                <th className="p-3 text-left">Date</th>
+                <th className="p-3 text-left">Distance</th>
+                <th className="p-3 text-left">Fuel Eff.</th>
+                <th className="p-3 text-left">Revenue</th>
+                <th className="p-3 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trips.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="p-6 text-center text-gray-500">
+                    No trips yet. Click "Log New Trip" to get started.
+                  </td>
+                </tr>
+              ) : (
+                trips.map((trip) => (
+                  <tr key={trip.id} className="border-t hover:bg-gray-50 cursor-pointer" onClick={() => handleViewDetails(trip)}>
+                    <td className="p-3">{getVehicleName(trip.vehicleId)}</td>
+                    <td className="p-3">{trip.startLocation} → {trip.endLocation}</td>
+                    <td className="p-3">
+                      {trip.startDate ? new Date(trip.startDate).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="p-3">{trip.distance ? `${trip.distance} km` : '-'}</td>
+                    <td className="p-3">
+                      {trip.fuelEfficiency ? (
+                        <span className="text-green-600 font-medium">{trip.fuelEfficiency.toFixed(1)} km/l</span>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td className="p-3 text-green-600">रू {parseInt(trip.revenue || 0).toLocaleString()}</td>
+                    <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEdit(trip)
+                        }}
+                        className="text-blue-500 hover:text-blue-700 mr-3"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(trip.id)
+                        }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-white border-t mt-auto">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="text-sm text-gray-600">
+              A project by{' '}
+              <a href="https://gsacharya.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                Ghanshyam Acharya
+              </a>
+            </div>
+            <div className="text-sm">
+              <a href="https://app.gsacharya.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:underline">
+                ← Back to Application Portal
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
+}
