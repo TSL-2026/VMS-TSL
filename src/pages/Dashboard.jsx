@@ -1,12 +1,15 @@
 /**
  * FILE: Dashboard.jsx
- * VERSION: Test-06
+ * VERSION: Test-07
+ * AUTHOR: Ghanshyam Acharya
+ * PURPOSE: Fleet compliance dashboard with export for supervisor
+ * DEPENDENCIES: React, Firebase Firestore, React Router
+ * 
  * CHANGES:
- * - Added CSV/Excel export functionality for vehicles and trips
- * - Export buttons visible only to supervisor (hardcoded email check)
- * - Can export all vehicle data including permits, insurance, service records
- * - Can export all trip data including routes, distance, revenue
- * PURPOSE: Fleet compliance dashboard with data export for supervisor
+ * - Fixed unterminated string constant (missing closing quote)
+ * - Added CSV export functionality for vehicles and trips
+ * - Supervisor-only export buttons
+ * - Real-time compliance alerts
  */
 
 import { signOut } from 'firebase/auth'
@@ -35,8 +38,8 @@ export default function Dashboard() {
 
   const user = auth.currentUser
   
-  // Check if user is supervisor (admin) - change this email to your supervisor's email
-  const isSupervisor = user?.email === 'gsacharyasu@sitaair.com.np' || user?.email === 'gsacharya@sisitaair.com.np
+  // Check if user is supervisor (admin) - FIXED: Added closing quotes
+  const isSupervisor = user?.email === 'gsacharyasu@sitaair.com.np' || user?.email === 'gsacharya@sisitaair.com.np'
 
   const isExpiringSoon = (date) => {
     if (!date) return false
@@ -239,6 +242,7 @@ export default function Dashboard() {
             <Link to="/" className="text-gray-600 hover:text-gray-800">Dashboard</Link>
             <Link to="/vehicles" className="text-gray-600 hover:text-gray-800">Vehicles</Link>
             <Link to="/trips" className="text-gray-600 hover:text-gray-800">Trips</Link>
+            <Link to="/reports" className="text-gray-600 hover:text-gray-800">Reports</Link>
             <span className="text-sm text-gray-600">{user?.email}</span>
             <button
               onClick={handleLogout}
